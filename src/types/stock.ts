@@ -146,6 +146,15 @@ export interface ReverseDCFResult {
   assessment: string;
 }
 
+export interface GrahamNumberResult {
+  eps: number;
+  bookValuePerShare: number;
+  grahamNumber: number;
+  currentPrice: number;
+  upside: number;
+  isBelowGraham: boolean;
+}
+
 // ============================================
 // TECHNICAL ANALYSIS TYPES
 // ============================================
@@ -244,6 +253,7 @@ export interface StockAnalysis {
   dcf: DCFResult;
   earningsMultiple: EarningsMultipleResult;
   reverseDCF: ReverseDCFResult;
+  grahamNumber?: GrahamNumberResult;
   
   // Scores
   technicalScore: TechnicalScore;

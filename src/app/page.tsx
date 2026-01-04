@@ -117,6 +117,14 @@ const demoAnalysis = {
     balance: [],
     cashFlow: [],
   },
+  grahamNumber: {
+    eps: 6.42,
+    bookValuePerShare: 4.38,
+    grahamNumber: 25.14,
+    currentPrice: 178.50,
+    upside: -0.86,
+    isBelowGraham: false,
+  },
 };
 
 // Color and display utilities for valuation result
@@ -1027,6 +1035,65 @@ export default function DashboardPage() {
               </div>
             </div>
           </section>
+
+          {/* Graham Number Section */}
+          {analysis.grahamNumber && analysis.grahamNumber.grahamNumber > 0 && (
+            <section className="bg-gradient-to-r from-amber-900/30 to-yellow-900/20 rounded-xl p-6 border border-amber-700/50">
+              <div className="flex items-center gap-3 mb-6">
+                <div className="w-10 h-10 rounded-lg bg-amber-500/20 flex items-center justify-center">
+                  <DollarSign className="w-6 h-6 text-amber-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-white">Graham Number</h3>
+                  <p className="text-amber-200/60 text-sm">Benjamin Graham&apos;s Formula: √(22.5 × EPS × Book Value)</p>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-slate-900/50 rounded-lg p-4 text-center">
+                  <p className="text-slate-400 text-sm mb-1">Graham Number</p>
+                  <p className="text-2xl font-bold text-amber-400">{formatCurrency(analysis.grahamNumber.grahamNumber, curr)}</p>
+                </div>
+                <div className="bg-slate-900/50 rounded-lg p-4 text-center">
+                  <p className="text-slate-400 text-sm mb-1">Current Price</p>
+                  <p className="text-2xl font-bold text-white">{formatCurrency(analysis.grahamNumber.currentPrice, curr)}</p>
+                </div>
+                <div className="bg-slate-900/50 rounded-lg p-4 text-center">
+                  <p className="text-slate-400 text-sm mb-1">Upside to Graham</p>
+                  <p className={`text-2xl font-bold ${analysis.grahamNumber.upside >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {analysis.grahamNumber.upside >= 0 ? '+' : ''}{formatPercent(analysis.grahamNumber.upside)}
+                  </p>
+                </div>
+              </div>
+              
+              <div className="mt-4 p-4 rounded-lg flex items-center gap-3" style={{
+                backgroundColor: analysis.grahamNumber.isBelowGraham ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)'
+              }}>
+                {analysis.grahamNumber.isBelowGraham ? (
+                  <CheckCircle className="w-6 h-6 text-emerald-400 flex-shrink-0" />
+                ) : (
+                  <AlertTriangle className="w-6 h-6 text-red-400 flex-shrink-0" />
+                )}
+                <p className={analysis.grahamNumber.isBelowGraham ? 'text-emerald-300' : 'text-red-300'}>
+                  {analysis.grahamNumber.isBelowGraham 
+                    ? `Stock is trading below Graham Number - potential value opportunity!`
+                    : `Stock is trading above Graham Number by ${formatPercent(Math.abs(analysis.grahamNumber.upside))}`
+                  }
+                </p>
+              </div>
+              
+              <div className="mt-4 grid grid-cols-2 gap-4 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-slate-400">EPS (TTM)</span>
+                  <span className="text-white">{formatCurrency(analysis.grahamNumber.eps, curr)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-slate-400">Book Value/Share</span>
+                  <span className="text-white">{formatCurrency(analysis.grahamNumber.bookValuePerShare, curr)}</span>
+                </div>
+              </div>
+            </section>
+          )}
 
           {/* Risk Factors */}
           {analysis.riskFactors.length > 0 && (

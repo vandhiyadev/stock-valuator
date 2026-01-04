@@ -19,6 +19,7 @@ import {
   DCFResult,
   EarningsMultipleResult,
   ReverseDCFResult,
+  GrahamNumberResult,
   ConfidenceScore,
   RiskFactor,
   Recommendation,
@@ -68,6 +69,41 @@ function calculateBuyZone(
   return {
     low: fairValue * (1 - marginOfSafety - 0.10), // 35% discount for strong buy
     high: fairValue * (1 - marginOfSafety), // 25% discount for buy
+  };
+}
+
+/**
+ * Calculate Graham Number
+ * Benjamin Graham's formula: √(22.5 × EPS × Book Value per Share)
+ * The 22.5 comes from Graham's maximum P/E of 15 × P/B of 1.5
+ */
+function calculateGrahamNumber(
+  eps: number,
+  bookValuePerShare: number,
+  currentPrice: number
+): GrahamNumberResult {
+  // Graham Number only works with positive EPS and book value
+  if (eps <= 0 || bookValuePerShare <= 0) {
+    return {
+      eps,
+      bookValuePerShare,
+      grahamNumber: 0,
+      currentPrice,
+      upside: 0,
+      isBelowGraham: false,
+    };
+  }
+  
+  const grahamNumber = Math.sqrt(22.5 * eps * bookValuePerShare);
+  const upside = ((grahamNumber - currentPrice) / currentPrice) * 100;
+  
+  return {
+    eps,
+    bookValuePerShare,
+    grahamNumber,
+    currentPrice,
+    upside,
+    isBelowGraham: currentPrice < grahamNumber,
   };
 }
 
@@ -417,6 +453,16 @@ export async function analyzeStock(symbol: string): Promise<StockAnalysis | null
       quote.price
     );
 
+    // Graham Number calculation
+    const bookValuePerShare = latestBalance?.totalEquity 
+      ? latestBalance.totalEquity / (quote.sharesOutstanding || 1)
+      : 0;
+    const grahamNumberResult = calculateGrahamNumber(
+      quote.eps,
+      bookValuePerShare,
+      quote.price
+    );
+
     // Technical Analysis
     const technicalIndicators = calculateTechnicalIndicators(priceHistory, quote.price);
     const technicalScore = calculateTechnicalScore(technicalIndicators);
@@ -489,6 +535,7 @@ export async function analyzeStock(symbol: string): Promise<StockAnalysis | null
         isReasonable: reverseDCFResult.isReasonable,
         assessment: reverseDCFResult.assessment,
       },
+      grahamNumber: grahamNumberResult,
       technicalScore,
       fundamentalScore,
       confidenceScore,
