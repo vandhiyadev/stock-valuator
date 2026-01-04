@@ -6,7 +6,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Search, TrendingUp, TrendingDown, Minus, AlertTriangle, CheckCircle, Info, DollarSign, BarChart3, Target, Shield, User, LogOut, Star, Heart, X, List } from 'lucide-react';
+import { Search, TrendingUp, TrendingDown, Minus, AlertTriangle, CheckCircle, Info, DollarSign, BarChart3, Target, Shield, User, LogOut, Star, Heart, X, List, Save, Check } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
 
@@ -347,6 +347,35 @@ export default function DashboardPage() {
     return watchlist.some(w => w.symbol === sym);
   };
   
+  const [savingAnalysis, setSavingAnalysis] = useState(false);
+  const [analysisSaved, setAnalysisSaved] = useState(false);
+  
+  const saveAnalysis = async () => {
+    if (!analysis || !session) return;
+    setSavingAnalysis(true);
+    try {
+      const res = await fetch('/api/saved-analyses', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          symbol: analysis.symbol,
+          name: analysis.name,
+          data: analysis,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setAnalysisSaved(true);
+        setTimeout(() => setAnalysisSaved(false), 3000);
+      } else {
+        alert(data.error || 'Failed to save analysis');
+      }
+    } catch (err) {
+      console.error('Failed to save analysis:', err);
+    }
+    setSavingAnalysis(false);
+  };
+  
   const acceptDisclaimer = () => {
     localStorage.setItem('disclaimerAccepted', 'true');
     setShowDisclaimerModal(false);
@@ -554,9 +583,13 @@ export default function DashboardPage() {
                     </span>
                   </div>
                   
-                  <span className="text-sm text-slate-300 hidden sm:inline">
+                  <Link
+                    href="/profile"
+                    className="text-sm text-slate-300 hidden sm:inline hover:text-white transition-colors"
+                    title="My Profile"
+                  >
                     {session.user?.name || session.user?.email?.split('@')[0]}
-                  </span>
+                  </Link>
                   <button
                     onClick={() => setShowWatchlist(!showWatchlist)}
                     className="flex items-center gap-1 px-3 py-2 text-sm text-slate-300 hover:text-white hover:bg-slate-700 rounded-lg transition-colors relative"
@@ -748,19 +781,34 @@ export default function DashboardPage() {
                     {getValuationLabel(analysis.recommendation)}
                   </span>
                   {session && (
-                    <button
-                      onClick={isInWatchlist(analysis.symbol) ? () => removeFromWatchlist(analysis.symbol) : addToWatchlist}
-                      disabled={watchlistLoading}
-                      className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm font-semibold transition-all ${
-                        isInWatchlist(analysis.symbol)
-                          ? 'bg-yellow-500/20 text-yellow-400 hover:bg-red-500/20 hover:text-red-400'
-                          : 'bg-slate-600/50 text-slate-300 hover:bg-yellow-500/20 hover:text-yellow-400'
-                      }`}
-                      title={isInWatchlist(analysis.symbol) ? 'Remove from Watchlist' : 'Add to Watchlist'}
-                    >
-                      <Star className={`w-4 h-4 ${isInWatchlist(analysis.symbol) ? 'fill-current' : ''}`} />
-                      {watchlistLoading ? 'Saving...' : isInWatchlist(analysis.symbol) ? 'Saved' : 'Watch'}
-                    </button>
+                    <>
+                      <button
+                        onClick={isInWatchlist(analysis.symbol) ? () => removeFromWatchlist(analysis.symbol) : addToWatchlist}
+                        disabled={watchlistLoading}
+                        className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm font-semibold transition-all ${
+                          isInWatchlist(analysis.symbol)
+                            ? 'bg-yellow-500/20 text-yellow-400 hover:bg-red-500/20 hover:text-red-400'
+                            : 'bg-slate-600/50 text-slate-300 hover:bg-yellow-500/20 hover:text-yellow-400'
+                        }`}
+                        title={isInWatchlist(analysis.symbol) ? 'Remove from Watchlist' : 'Add to Watchlist'}
+                      >
+                        <Star className={`w-4 h-4 ${isInWatchlist(analysis.symbol) ? 'fill-current' : ''}`} />
+                        {watchlistLoading ? 'Saving...' : isInWatchlist(analysis.symbol) ? 'Saved' : 'Watch'}
+                      </button>
+                      <button
+                        onClick={saveAnalysis}
+                        disabled={savingAnalysis}
+                        className={`flex items-center gap-1 px-3 py-1 rounded-full text-sm font-semibold transition-all ${
+                          analysisSaved
+                            ? 'bg-emerald-500/20 text-emerald-400'
+                            : 'bg-slate-600/50 text-slate-300 hover:bg-blue-500/20 hover:text-blue-400'
+                        }`}
+                        title="Save Analysis Report"
+                      >
+                        {analysisSaved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
+                        {savingAnalysis ? 'Saving...' : analysisSaved ? 'Saved!' : 'Save'}
+                      </button>
+                    </>
                   )}
                 </div>
                 <p className="text-slate-300 text-lg">{analysis.name}</p>

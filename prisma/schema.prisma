@@ -2,7 +2,8 @@
 // Supports SQLite (dev) and Turso/libSQL (production)
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["driverAdapters"]
 }
 
 datasource db {
@@ -100,8 +101,10 @@ model SavedAnalysis {
   id            String   @id @default(cuid())
   userId        String
   symbol        String
-  analysisData  String   // JSON stringified analysis
-  createdAt     DateTime @default(now())
+  name          String?  // Stock name
+  data          String   // JSON stringified analysis
+  notes         String?  // User notes
+  savedAt       DateTime @default(now())
   
   user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   
