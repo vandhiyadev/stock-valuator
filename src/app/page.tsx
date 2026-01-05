@@ -708,6 +708,16 @@ export default function DashboardPage() {
                     )}
                   </button>
                   
+                  {/* Screener Link */}
+                  <Link
+                    href="/screener"
+                    className="flex items-center gap-1 px-3 py-2 text-sm text-cyan-400 hover:text-white hover:bg-cyan-500/20 rounded-lg transition-colors"
+                    title="Stock Screener"
+                  >
+                    <Search className="w-4 h-4" />
+                    <span className="hidden sm:inline">Screener</span>
+                  </Link>
+                  
                   {/* Admin Link */}
                   {(session?.user as { tier?: string })?.tier === 'admin' && (
                     <Link
