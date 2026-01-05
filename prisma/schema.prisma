@@ -57,6 +57,7 @@ model User {
   watchlist     Watchlist[]
   usage         Usage[]
   analyses      SavedAnalysis[]
+  portfolio     Portfolio[]
 }
 
 model VerificationToken {
@@ -110,4 +111,20 @@ model SavedAnalysis {
   
   @@index([userId])
   @@index([symbol])
+}
+
+// Portfolio holdings
+model Portfolio {
+  id        String   @id @default(cuid())
+  userId    String
+  symbol    String
+  name      String
+  quantity  Float
+  avgCost   Float
+  addedAt   DateTime @default(now())
+  
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@index([userId])
+  @@unique([userId, symbol])
 }

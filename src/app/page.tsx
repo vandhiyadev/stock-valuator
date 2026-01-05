@@ -718,6 +718,16 @@ export default function DashboardPage() {
                     <span className="hidden sm:inline">Screener</span>
                   </Link>
                   
+                  {/* Portfolio Link */}
+                  <Link
+                    href="/portfolio"
+                    className="flex items-center gap-1 px-3 py-2 text-sm text-emerald-400 hover:text-white hover:bg-emerald-500/20 rounded-lg transition-colors"
+                    title="Portfolio Tracker"
+                  >
+                    <DollarSign className="w-4 h-4" />
+                    <span className="hidden sm:inline">Portfolio</span>
+                  </Link>
+                  
                   {/* Admin Link */}
                   {(session?.user as { tier?: string })?.tier === 'admin' && (
                     <Link
