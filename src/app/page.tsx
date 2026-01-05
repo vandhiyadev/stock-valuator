@@ -6,7 +6,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Search, TrendingUp, TrendingDown, Minus, AlertTriangle, CheckCircle, Info, DollarSign, BarChart3, Target, Shield, User, LogOut, Star, Heart, X, List, Save, Check, Sparkles, Loader2, Users } from 'lucide-react';
+import { Search, TrendingUp, TrendingDown, Minus, AlertTriangle, CheckCircle, Info, DollarSign, BarChart3, Target, Shield, User, LogOut, Star, Heart, X, List, Save, Check, Sparkles, Loader2, Users, LineChart } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
 
@@ -288,6 +288,19 @@ export default function DashboardPage() {
   const [peersLoading, setPeersLoading] = useState(false);
   const [showPeers, setShowPeers] = useState(false);
   
+  // Historical Chart state
+  interface HistoricalDataPoint {
+    date: string;
+    price: number;
+    fairValue: number | null;
+    buyZone: number | null;
+  }
+  const [historicalData, setHistoricalData] = useState<HistoricalDataPoint[]>([]);
+  const [historicalStats, setHistoricalStats] = useState<{valuationStatus: string; avgPrice: number; avgFairValue: number}>({valuationStatus: '', avgPrice: 0, avgFairValue: 0});
+  const [historicalPeriod, setHistoricalPeriod] = useState('1y');
+  const [historicalLoading, setHistoricalLoading] = useState(false);
+  const [showHistorical, setShowHistorical] = useState(false);
+  
   // Show disclaimer on first visit
   useEffect(() => {
     const hasAcceptedDisclaimer = localStorage.getItem('disclaimerAccepted');
@@ -452,6 +465,24 @@ export default function DashboardPage() {
       console.error('Peer comparison error:', err);
     }
     setPeersLoading(false);
+  };
+  // Fetch historical valuation data
+  const fetchHistoricalData = async (period: string = historicalPeriod) => {
+    if (!analysis) return;
+    setHistoricalLoading(true);
+    setShowHistorical(true);
+    setHistoricalPeriod(period);
+    try {
+      const res = await fetch(`/api/historical?symbol=${analysis.symbol}&period=${period}`);
+      const data = await res.json();
+      if (data.success) {
+        setHistoricalData(data.chartData);
+        setHistoricalStats(data.stats);
+      }
+    } catch (err) {
+      console.error('Historical data error:', err);
+    }
+    setHistoricalLoading(false);
   };
 
   // Debounced search for autocomplete
@@ -899,6 +930,15 @@ export default function DashboardPage() {
                         {peersLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />}
                         {peersLoading ? 'Loading...' : 'Peers'}
                       </button>
+                      <button
+                        onClick={() => fetchHistoricalData()}
+                        disabled={historicalLoading}
+                        className="flex items-center gap-1 px-3 py-1 rounded-full text-sm font-semibold transition-all bg-gradient-to-r from-green-500/20 to-emerald-500/20 text-green-300 hover:from-green-500/30 hover:to-emerald-500/30 border border-green-500/30"
+                        title="View Historical Valuation"
+                      >
+                        {historicalLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <LineChart className="w-4 h-4" />}
+                        {historicalLoading ? 'Loading...' : 'History'}
+                      </button>
                     </>
                   )}
                 </div>
@@ -1200,6 +1240,135 @@ export default function DashboardPage() {
                       No peer data available for this sector
                     </div>
                   )}
+                </>
+              )}
+            </section>
+          )}
+
+          {/* Historical Valuation Chart Panel */}
+          {showHistorical && (
+            <section className="bg-gradient-to-r from-green-900/30 via-emerald-900/20 to-green-900/30 rounded-xl p-6 border border-green-500/30">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center">
+                    <LineChart className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">Historical Valuation</h3>
+                    <p className="text-green-200/60 text-sm">Price vs Fair Value over time</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {/* Period Selector */}
+                  <div className="flex gap-1 bg-slate-900/50 rounded-lg p-1">
+                    {['1m', '3m', '6m', '1y', '2y'].map((period) => (
+                      <button
+                        key={period}
+                        onClick={() => fetchHistoricalData(period)}
+                        className={`px-3 py-1 rounded text-xs font-medium transition-colors ${
+                          historicalPeriod === period
+                            ? 'bg-green-600 text-white'
+                            : 'text-slate-400 hover:text-white hover:bg-slate-700'
+                        }`}
+                      >
+                        {period.toUpperCase()}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    onClick={() => setShowHistorical(false)}
+                    className="p-2 hover:bg-slate-700/50 rounded-lg transition-colors"
+                  >
+                    <X className="w-5 h-5 text-slate-400" />
+                  </button>
+                </div>
+              </div>
+              
+              {historicalLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <Loader2 className="w-12 h-12 text-green-400 animate-spin mx-auto mb-4" />
+                    <p className="text-green-200">Loading historical data...</p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Stats Cards */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div className="bg-slate-900/50 rounded-lg p-4 text-center">
+                      <p className="text-slate-400 text-sm mb-1">Current Price</p>
+                      <p className="text-xl font-bold text-white">{formatCurrency(analysis.currentPrice, curr)}</p>
+                    </div>
+                    <div className="bg-slate-900/50 rounded-lg p-4 text-center">
+                      <p className="text-slate-400 text-sm mb-1">Avg Price</p>
+                      <p className="text-xl font-bold text-slate-300">{formatCurrency(historicalStats.avgPrice, curr)}</p>
+                    </div>
+                    <div className="bg-slate-900/50 rounded-lg p-4 text-center">
+                      <p className="text-slate-400 text-sm mb-1">Fair Value</p>
+                      <p className="text-xl font-bold text-emerald-400">{formatCurrency(analysis.fairValue, curr)}</p>
+                    </div>
+                    <div className="bg-slate-900/50 rounded-lg p-4 text-center">
+                      <p className="text-slate-400 text-sm mb-1">Status</p>
+                      <p className={`text-lg font-bold ${
+                        historicalStats.valuationStatus.includes('Under') ? 'text-emerald-400' :
+                        historicalStats.valuationStatus.includes('Over') ? 'text-red-400' : 'text-yellow-400'
+                      }`}>
+                        {historicalStats.valuationStatus || 'N/A'}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Simple Chart Representation (without Recharts for now - using CSS bars) */}
+                  <div className="bg-slate-900/50 rounded-lg p-4">
+                    <div className="flex items-end gap-1 h-48 overflow-x-auto">
+                      {historicalData.slice(-50).map((point, i) => {
+                        const maxPrice = Math.max(...historicalData.slice(-50).map(d => d.price));
+                        const height = (point.price / maxPrice) * 100;
+                        const fairValueHeight = point.fairValue ? (point.fairValue / maxPrice) * 100 : 0;
+                        const isAboveFairValue = point.fairValue ? point.price > point.fairValue : false;
+                        
+                        return (
+                          <div key={i} className="flex-1 min-w-[6px] flex flex-col justify-end relative group">
+                            {/* Fair Value indicator */}
+                            {fairValueHeight > 0 && (
+                              <div 
+                                className="absolute w-full bg-emerald-500/30 border-t-2 border-emerald-400"
+                                style={{ height: `${fairValueHeight}%`, bottom: 0 }}
+                              />
+                            )}
+                            {/* Price bar */}
+                            <div 
+                              className={`w-full rounded-t transition-all ${
+                                isAboveFairValue ? 'bg-red-400/70' : 'bg-emerald-400/70'
+                              } hover:opacity-100 opacity-80`}
+                              style={{ height: `${height}%` }}
+                              title={`${point.date}: ${formatCurrency(point.price, curr)}`}
+                            />
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div className="flex justify-between mt-2 text-xs text-slate-500">
+                      <span>{historicalData[0]?.date || ''}</span>
+                      <span>{historicalData[historicalData.length - 1]?.date || ''}</span>
+                    </div>
+                  </div>
+                  
+                  {/* Legend */}
+                  <div className="flex justify-center gap-6 mt-4 text-sm">
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 rounded bg-emerald-400/70"></div>
+                      <span className="text-slate-400">Below Fair Value</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-4 rounded bg-red-400/70"></div>
+                      <span className="text-slate-400">Above Fair Value</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <div className="w-4 h-1 bg-emerald-400"></div>
+                      <span className="text-slate-400">Fair Value Line</span>
+                    </div>
+                  </div>
                 </>
               )}
             </section>
