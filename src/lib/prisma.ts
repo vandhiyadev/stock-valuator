@@ -1,41 +1,45 @@
 /**
  * Prisma Client Singleton
- * Supports Turso (production) and SQLite (development)
+ * For production with Turso
  */
 
 import { PrismaClient } from '@prisma/client';
 import { PrismaLibSQL } from '@prisma/adapter-libsql';
 import { createClient } from '@libsql/client';
 
-const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
-};
+declare global {
+  // eslint-disable-next-line no-var
+  var prisma: PrismaClient | undefined;
+}
 
 function createPrismaClient(): PrismaClient {
   const databaseUrl = process.env.DATABASE_URL || '';
   const authToken = process.env.DATABASE_AUTH_TOKEN;
   
-  // Check if we're using Turso (production) - URL starts with libsql:// or https://
-  if (databaseUrl.startsWith('libsql://') || databaseUrl.startsWith('https://')) {
+  // Use Turso for production
+  if (databaseUrl && databaseUrl.includes('turso.io')) {
+    console.log('Using Turso database');
     const libsql = createClient({
       url: databaseUrl,
       authToken: authToken,
     });
     
     const adapter = new PrismaLibSQL(libsql);
-    return new PrismaClient({ adapter } as unknown as ConstructorParameters<typeof PrismaClient>[0]);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return new PrismaClient({ adapter } as any);
   }
   
-  // Development: Use local SQLite (file:// URL)
+  // Local development with file SQLite
+  console.log('Using local SQLite database');
   return new PrismaClient({
     log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
   });
 }
 
-export const prisma = globalForPrisma.prisma ?? createPrismaClient();
+export const prisma = global.prisma ?? createPrismaClient();
 
 if (process.env.NODE_ENV !== 'production') {
-  globalForPrisma.prisma = prisma;
+  global.prisma = prisma;
 }
 
 export default prisma;
