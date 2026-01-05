@@ -6,7 +6,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Search, TrendingUp, TrendingDown, Minus, AlertTriangle, CheckCircle, Info, DollarSign, BarChart3, Target, Shield, User, LogOut, Star, Heart, X, List, Save, Check } from 'lucide-react';
+import { Search, TrendingUp, TrendingDown, Minus, AlertTriangle, CheckCircle, Info, DollarSign, BarChart3, Target, Shield, User, LogOut, Star, Heart, X, List, Save, Check, Sparkles, Loader2 } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
 
@@ -265,6 +265,11 @@ export default function DashboardPage() {
     tier: 'free'
   });
   
+  // AI Analysis state
+  const [aiSummary, setAiSummary] = useState<string>('');
+  const [aiLoading, setAiLoading] = useState(false);
+  const [showAiPanel, setShowAiPanel] = useState(false);
+  
   // Show disclaimer on first visit
   useEffect(() => {
     const hasAcceptedDisclaimer = localStorage.getItem('disclaimerAccepted');
@@ -387,6 +392,30 @@ export default function DashboardPage() {
   const acceptDisclaimer = () => {
     localStorage.setItem('disclaimerAccepted', 'true');
     setShowDisclaimerModal(false);
+  };
+  
+  // Fetch AI analysis
+  const fetchAiAnalysis = async () => {
+    if (!analysis) return;
+    setAiLoading(true);
+    setShowAiPanel(true);
+    try {
+      const res = await fetch('/api/ai-analysis', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ analysis }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setAiSummary(data.aiSummary);
+      } else {
+        setAiSummary('Unable to generate AI analysis. Please try again later.');
+      }
+    } catch (err) {
+      console.error('AI Analysis error:', err);
+      setAiSummary('Unable to generate AI analysis. Please try again later.');
+    }
+    setAiLoading(false);
   };
 
   // Debounced search for autocomplete
@@ -816,6 +845,15 @@ export default function DashboardPage() {
                         {analysisSaved ? <Check className="w-4 h-4" /> : <Save className="w-4 h-4" />}
                         {savingAnalysis ? 'Saving...' : analysisSaved ? 'Saved!' : 'Save'}
                       </button>
+                      <button
+                        onClick={fetchAiAnalysis}
+                        disabled={aiLoading}
+                        className="flex items-center gap-1 px-3 py-1 rounded-full text-sm font-semibold transition-all bg-gradient-to-r from-purple-500/20 to-pink-500/20 text-purple-300 hover:from-purple-500/30 hover:to-pink-500/30 border border-purple-500/30"
+                        title="Get AI-Powered Analysis"
+                      >
+                        {aiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
+                        {aiLoading ? 'Analyzing...' : 'AI Insights'}
+                      </button>
                     </>
                   )}
                 </div>
@@ -908,6 +946,95 @@ export default function DashboardPage() {
               <p className="text-slate-400 text-sm mt-1">{analysis.marginOfSafety >= 0.25 ? 'Strong buffer' : analysis.marginOfSafety >= 0 ? 'Some buffer' : 'Overvalued'}</p>
             </div>
           </section>
+
+          {/* AI Analysis Panel */}
+          {showAiPanel && (
+            <section className="bg-gradient-to-r from-purple-900/30 via-pink-900/20 to-purple-900/30 rounded-xl p-6 border border-purple-500/30">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-purple-500 to-pink-500 flex items-center justify-center">
+                    <Sparkles className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">AI-Powered Analysis</h3>
+                    <p className="text-purple-200/60 text-sm">Powered by Google Gemini</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowAiPanel(false)}
+                  className="p-2 hover:bg-slate-700/50 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-slate-400" />
+                </button>
+              </div>
+              
+              {aiLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <Loader2 className="w-12 h-12 text-purple-400 animate-spin mx-auto mb-4" />
+                    <p className="text-purple-200">Analyzing {analysis.symbol}...</p>
+                    <p className="text-purple-300/60 text-sm mt-2">This may take a few seconds</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="prose prose-invert max-w-none">
+                  <div className="bg-slate-900/50 rounded-lg p-6 text-slate-200 leading-relaxed whitespace-pre-wrap">
+                    {aiSummary.split('\n').map((line, i) => {
+                      // Handle headers
+                      if (line.startsWith('## ')) {
+                        return <h3 key={i} className="text-lg font-bold text-purple-300 mt-4 mb-2">{line.replace('## ', '')}</h3>;
+                      }
+                      if (line.startsWith('# ')) {
+                        return <h2 key={i} className="text-xl font-bold text-white mt-4 mb-2">{line.replace('# ', '')}</h2>;
+                      }
+                      // Handle bullet points
+                      if (line.startsWith('• ') || line.startsWith('- ')) {
+                        return <p key={i} className="ml-4 text-slate-300">{line}</p>;
+                      }
+                      // Handle bold text
+                      if (line.includes('**')) {
+                        const parts = line.split(/\*\*(.*?)\*\*/g);
+                        return (
+                          <p key={i} className="text-slate-300">
+                            {parts.map((part, j) => 
+                              j % 2 === 1 ? <strong key={j} className="text-white">{part}</strong> : part
+                            )}
+                          </p>
+                        );
+                      }
+                      // Handle horizontal rules
+                      if (line.startsWith('---')) {
+                        return <hr key={i} className="border-purple-500/30 my-4" />;
+                      }
+                      // Handle italics (disclaimer)
+                      if (line.startsWith('*') && line.endsWith('*')) {
+                        return <p key={i} className="text-slate-500 text-sm italic mt-4">{line.replace(/\*/g, '')}</p>;
+                      }
+                      // Regular text
+                      if (line.trim()) {
+                        return <p key={i} className="text-slate-300">{line}</p>;
+                      }
+                      return <br key={i} />;
+                    })}
+                  </div>
+                </div>
+              )}
+              
+              <div className="mt-4 flex items-center justify-between">
+                <p className="text-purple-300/60 text-xs">
+                  AI analysis is for informational purposes only and not investment advice.
+                </p>
+                <button
+                  onClick={fetchAiAnalysis}
+                  disabled={aiLoading}
+                  className="flex items-center gap-2 px-4 py-2 bg-purple-600/30 text-purple-300 rounded-lg hover:bg-purple-600/50 transition-colors disabled:opacity-50"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  Regenerate
+                </button>
+              </div>
+            </section>
+          )}
 
           {/* Valuation Models */}
           <section className="grid grid-cols-1 lg:grid-cols-2 gap-6">
