@@ -4,7 +4,8 @@
  */
 
 import { PrismaClient } from '@prisma/client';
-import { PrismaLibSql } from '@prisma/adapter-libsql';
+import { PrismaLibSQL } from '@prisma/adapter-libsql';
+import { createClient } from '@libsql/client';
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
@@ -16,12 +17,13 @@ function createPrismaClient(): PrismaClient {
   
   // Check if we're using Turso (production) - URL starts with libsql:// or https://
   if (databaseUrl.startsWith('libsql://') || databaseUrl.startsWith('https://')) {
-    const adapter = new PrismaLibSql({
+    const libsql = createClient({
       url: databaseUrl,
       authToken: authToken,
     });
-    // @ts-expect-error - Prisma adapter types
-    return new PrismaClient({ adapter });
+    
+    const adapter = new PrismaLibSQL(libsql);
+    return new PrismaClient({ adapter } as unknown as ConstructorParameters<typeof PrismaClient>[0]);
   }
   
   // Development: Use local SQLite (file:// URL)
