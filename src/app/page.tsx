@@ -6,7 +6,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Search, TrendingUp, TrendingDown, Minus, AlertTriangle, CheckCircle, Info, DollarSign, BarChart3, Target, Shield, User, LogOut, Star, Heart, X, List, Save, Check, Sparkles, Loader2, Users, LineChart } from 'lucide-react';
+import { Search, TrendingUp, TrendingDown, Minus, AlertTriangle, CheckCircle, Info, DollarSign, BarChart3, Target, Shield, User, LogOut, Star, Heart, X, List, Save, Check, Sparkles, Loader2, Users, LineChart, FileDown } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
 
@@ -484,6 +484,129 @@ export default function DashboardPage() {
     }
     setHistoricalLoading(false);
   };
+  
+  // Export analysis as PDF
+  const exportPDF = async () => {
+    if (!analysis) return;
+    
+    // Determine currency
+    const pdfCurr = analysis.symbol.includes('.NS') || analysis.symbol.includes('.BO') ? '₹' : '$';
+    
+    try {
+      const { jsPDF } = await import('jspdf');
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      
+      // Title
+      doc.setFontSize(24);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${analysis.symbol} Analysis Report`, pageWidth / 2, 20, { align: 'center' });
+      
+      // Subtitle
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`${analysis.name}`, pageWidth / 2, 28, { align: 'center' });
+      doc.text(`${analysis.sector} | ${analysis.industry}`, pageWidth / 2, 34, { align: 'center' });
+      doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth / 2, 40, { align: 'center' });
+      
+      // Divider
+      doc.setLineWidth(0.5);
+      doc.line(20, 45, pageWidth - 20, 45);
+      
+      let yPos = 55;
+      
+      // Valuation Summary
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Valuation Summary', 20, yPos);
+      yPos += 10;
+      
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Recommendation: ${analysis.recommendation.replace('_', ' ')}`, 20, yPos);
+      yPos += 7;
+      doc.text(`Current Price: ${formatCurrency(analysis.currentPrice, pdfCurr)}`, 20, yPos);
+      yPos += 7;
+      doc.text(`Fair Value: ${formatCurrency(analysis.fairValue, pdfCurr)}`, 20, yPos);
+      yPos += 7;
+      doc.text(`Upside: ${analysis.upside >= 0 ? '+' : ''}${formatPercent(analysis.upside)}`, 20, yPos);
+      yPos += 7;
+      doc.text(`Margin of Safety: ${formatPercent(analysis.marginOfSafety)}`, 20, yPos);
+      yPos += 15;
+      
+      // Valuation Models
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Valuation Models', 20, yPos);
+      yPos += 10;
+      
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`DCF Fair Value: ${formatCurrency(analysis.dcf.intrinsicPrice, pdfCurr)}`, 20, yPos);
+      yPos += 7;
+      doc.text(`Earnings Multiple Fair Value: ${formatCurrency(analysis.earningsMultiple.fairValue, pdfCurr)}`, 20, yPos);
+      yPos += 7;
+      if (analysis.grahamNumber && analysis.grahamNumber.grahamNumber > 0) {
+        doc.text(`Graham Number: ${formatCurrency(analysis.grahamNumber.grahamNumber, pdfCurr)}`, 20, yPos);
+        yPos += 7;
+      }
+      yPos += 8;
+      
+      // Scores
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Analysis Scores', 20, yPos);
+      yPos += 10;
+      
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Fundamental Score: ${analysis.fundamentalScore.score}/100`, 20, yPos);
+      yPos += 7;
+      doc.text(`Technical Score: ${analysis.technicalScore.score}/100`, 20, yPos);
+      yPos += 7;
+      doc.text(`Confidence Score: ${analysis.confidenceScore.score}/100`, 20, yPos);
+      yPos += 15;
+      
+      // Buy Zone
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Buy Zone', 20, yPos);
+      yPos += 10;
+      
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Strong Buy: Below ${formatCurrency(analysis.buyZone.low, pdfCurr)}`, 20, yPos);
+      yPos += 7;
+      doc.text(`Buy: Below ${formatCurrency(analysis.buyZone.high, pdfCurr)}`, 20, yPos);
+      yPos += 15;
+      
+      // Risk Factors
+      if (analysis.riskFactors.length > 0) {
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.text('Risk Factors', 20, yPos);
+        yPos += 10;
+        
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'normal');
+        analysis.riskFactors.slice(0, 5).forEach((risk) => {
+          doc.text(`• ${risk.description} (${risk.severity})`, 20, yPos);
+          yPos += 7;
+        });
+      }
+      
+      // Footer
+      doc.setFontSize(9);
+      doc.setTextColor(128, 128, 128);
+      doc.text('Generated by Stock Valuator - For informational purposes only', pageWidth / 2, 285, { align: 'center' });
+      
+      // Save PDF
+      doc.save(`${analysis.symbol}_Analysis_${new Date().toISOString().split('T')[0]}.pdf`);
+    } catch (err) {
+      console.error('PDF export error:', err);
+      alert('Failed to export PDF. Please try again.');
+    }
+  };
 
   // Debounced search for autocomplete
   const handleInputChange = (value: string) => {
@@ -958,6 +1081,14 @@ export default function DashboardPage() {
                       >
                         {historicalLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <LineChart className="w-4 h-4" />}
                         {historicalLoading ? 'Loading...' : 'History'}
+                      </button>
+                      <button
+                        onClick={exportPDF}
+                        className="flex items-center gap-1 px-3 py-1 rounded-full text-sm font-semibold transition-all bg-gradient-to-r from-orange-500/20 to-amber-500/20 text-orange-300 hover:from-orange-500/30 hover:to-amber-500/30 border border-orange-500/30"
+                        title="Export as PDF"
+                      >
+                        <FileDown className="w-4 h-4" />
+                        PDF
                       </button>
                     </>
                   )}
