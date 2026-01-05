@@ -186,8 +186,8 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ 
       success: false, 
       error: 'Failed to fetch historical data',
-      details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+      details: errorMessage // Always show details for debugging
     }, { status: 500 });
   }
 }
-// Deployment trigger: 1767632198
+
