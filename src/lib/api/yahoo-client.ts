@@ -175,6 +175,37 @@ class YahooFinanceClient {
       return null;
     }
   }
+
+  /**
+   * Get chart data for historical valuation
+   */
+  async getChart(symbol: string, startDate: Date, endDate: Date, interval: '1d' | '1wk' = '1wk') {
+    try {
+      const result = await yahooFinance.chart(symbol, {
+        period1: startDate,
+        period2: endDate,
+        interval,
+      });
+      return result;
+    } catch (error) {
+      console.error('Error fetching chart:', error);
+      return null;
+    }
+  }
+
+  /**
+   * Get basic quote data
+   */
+  async getBasicQuote(symbol: string) {
+    try {
+      const quote = await yahooFinance.quote(symbol);
+      return quote;
+    } catch (error) {
+      console.error('Error fetching quote:', error);
+      return null;
+    }
+  }
 }
 
 export const yahooClient = new YahooFinanceClient();
+

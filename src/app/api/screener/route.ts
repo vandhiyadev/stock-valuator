@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import YahooFinance from 'yahoo-finance2';
-
-// Initialize Yahoo Finance client (required for v3.x)
-const yahooFinance = new YahooFinance();
+import { yahooClient } from '@/lib/api/yahoo-client';
 
 interface ScreenedStock {
   symbol: string;
@@ -64,12 +61,12 @@ export async function GET(request: NextRequest) {
     // Get stock list
     const symbols = STOCK_LISTS[list as keyof typeof STOCK_LISTS] || STOCK_LISTS['us-largecap'];
 
-    // Fetch data for all symbols
+    // Fetch data for all symbols using centralized client
     const screenedStocks: ScreenedStock[] = [];
 
     for (const symbol of symbols) {
       try {
-        const quote = await yahooFinance.quote(symbol) as {
+        const quote = await yahooClient.getBasicQuote(symbol) as {
           symbol?: string;
           shortName?: string;
           longName?: string;

@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import YahooFinance from 'yahoo-finance2';
-
-// Initialize Yahoo Finance client (required for v3.x)
-const yahooFinance = new YahooFinance();
+import { yahooClient } from '@/lib/api/yahoo-client';
 
 interface PeerStock {
   symbol: string;
@@ -102,12 +99,12 @@ export async function GET(request: NextRequest) {
     // Limit to 5 peers
     peerSymbols = peerSymbols.slice(0, 5);
 
-    // Fetch peer data
+    // Fetch peer data using centralized client
     const peerData: PeerStock[] = [];
     
     for (const peerSymbol of peerSymbols) {
       try {
-        const quote = await yahooFinance.quote(peerSymbol) as {
+        const quote = await yahooClient.getBasicQuote(peerSymbol) as {
           symbol?: string;
           shortName?: string;
           longName?: string;

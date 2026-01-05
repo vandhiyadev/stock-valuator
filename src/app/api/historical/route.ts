@@ -1,8 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import YahooFinance from 'yahoo-finance2';
-
-// Initialize Yahoo Finance client (required for v3.x)
-const yahooFinance = new YahooFinance();
+import { yahooClient } from '@/lib/api/yahoo-client';
 
 interface HistoricalDataPoint {
   date: string;
@@ -49,38 +46,24 @@ export async function GET(request: NextRequest) {
         startDate.setFullYear(startDate.getFullYear() - 1);
     }
 
-    // Fetch historical data
-    const historicalData = await yahooFinance.chart(symbol, {
-      period1: startDate,
-      period2: endDate,
-      interval: period === '1m' ? '1d' : period === '3m' ? '1d' : '1wk',
-    }) as {
-      quotes?: Array<{
-        date?: Date;
-        close?: number | null;
-      }>;
-    };
+    // Determine interval based on period
+    const interval: '1d' | '1wk' = period === '1m' || period === '3m' ? '1d' : '1wk';
+
+    // Fetch historical data using centralized client
+    const historicalData = await yahooClient.getChart(symbol, startDate, endDate, interval);
 
     if (!historicalData?.quotes || historicalData.quotes.length === 0) {
       return NextResponse.json({ success: false, error: 'No historical data available' }, { status: 404 });
     }
 
     // Get current financial data for fair value calculation
-    const quote = await yahooFinance.quote(symbol) as {
-      epsTrailingTwelveMonths?: number;
-      regularMarketPrice?: number;
-      bookValue?: number;
-      priceToBook?: number;
-      fiftyTwoWeekHigh?: number;
-      fiftyTwoWeekLow?: number;
-      trailingPE?: number;
-    };
+    const quote = await yahooClient.getBasicQuote(symbol);
     
-    const currentEPS = quote?.epsTrailingTwelveMonths || 0;
-    const currentPrice = quote?.regularMarketPrice || 0;
-    const bookValue = quote?.bookValue || 0;
-    const fiftyTwoWeekHigh = quote?.fiftyTwoWeekHigh || currentPrice;
-    const fiftyTwoWeekLow = quote?.fiftyTwoWeekLow || currentPrice;
+    const currentEPS = (quote as any)?.epsTrailingTwelveMonths || 0;
+    const currentPrice = (quote as any)?.regularMarketPrice || 0;
+    const bookValue = (quote as any)?.bookValue || 0;
+    const fiftyTwoWeekHigh = (quote as any)?.fiftyTwoWeekHigh || currentPrice;
+    const fiftyTwoWeekLow = (quote as any)?.fiftyTwoWeekLow || currentPrice;
     
     // Calculate fair value using multiple methods
     let baseFairValue = 0;
@@ -180,14 +163,11 @@ export async function GET(request: NextRequest) {
     });
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    const errorStack = error instanceof Error ? error.stack : '';
     console.error('Historical valuation error:', errorMessage);
-    console.error('Stack:', errorStack);
     return NextResponse.json({ 
       success: false, 
       error: 'Failed to fetch historical data',
-      details: errorMessage // Always show details for debugging
+      details: errorMessage
     }, { status: 500 });
   }
 }
-

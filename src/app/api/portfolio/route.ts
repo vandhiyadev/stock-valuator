@@ -2,10 +2,22 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getServerSession } from 'next-auth';
 import { authOptions } from '../auth/[...nextauth]/route';
 import { prisma } from '@/lib/prisma';
-import YahooFinance from 'yahoo-finance2';
+import { yahooClient } from '@/lib/api/yahoo-client';
 
-// Initialize Yahoo Finance client (required for v3.x)
-const yahooFinance = new YahooFinance();
+interface PortfolioItem {
+  id: string;
+  symbol: string;
+  name: string;
+  quantity: number;
+  avgCost: number;
+  currentPrice: number;
+  currentValue: number;
+  costBasis: number;
+  gainLoss: number;
+  gainLossPercent: number;
+  dayChange: number;
+  dayChangePercent: number;
+}
 
 // GET - Fetch user's portfolio
 export async function GET() {
@@ -24,11 +36,11 @@ export async function GET() {
       return NextResponse.json({ success: false, error: 'User not found' }, { status: 404 });
     }
 
-    // Fetch current prices for portfolio items
-    const portfolioWithPrices = await Promise.all(
+    // Fetch current prices for portfolio items using centralized client
+    const portfolioWithPrices: PortfolioItem[] = await Promise.all(
       user.portfolio.map(async (item) => {
         try {
-          const quote = await yahooFinance.quote(item.symbol) as {
+          const quote = await yahooClient.getBasicQuote(item.symbol) as {
             regularMarketPrice?: number;
             regularMarketChange?: number;
             regularMarketChangePercent?: number;
@@ -75,8 +87,8 @@ export async function GET() {
     );
 
     // Calculate totals
-    const totalValue = portfolioWithPrices.reduce((sum, item) => sum + item.currentValue, 0);
-    const totalCost = portfolioWithPrices.reduce((sum, item) => sum + item.costBasis, 0);
+    const totalValue = portfolioWithPrices.reduce((sum: number, item: PortfolioItem) => sum + item.currentValue, 0);
+    const totalCost = portfolioWithPrices.reduce((sum: number, item: PortfolioItem) => sum + item.costBasis, 0);
     const totalGainLoss = totalValue - totalCost;
     const totalGainLossPercent = totalCost > 0 ? (totalGainLoss / totalCost) * 100 : 0;
 
