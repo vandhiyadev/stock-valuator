@@ -2,8 +2,7 @@
 // Supports SQLite (dev) and Turso/libSQL (production)
 
 generator client {
-  provider        = "prisma-client-js"
-  previewFeatures = ["driverAdapters"]
+  provider = "prisma-client-js"
 }
 
 datasource db {
