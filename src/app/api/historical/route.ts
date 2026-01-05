@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import yahooFinance from 'yahoo-finance2';
+import YahooFinance from 'yahoo-finance2';
+
+// Initialize Yahoo Finance client (required for v3.x)
+const yahooFinance = new YahooFinance();
 
 interface HistoricalDataPoint {
   date: string;
@@ -66,17 +69,42 @@ export async function GET(request: NextRequest) {
     const quote = await yahooFinance.quote(symbol) as {
       epsTrailingTwelveMonths?: number;
       regularMarketPrice?: number;
+      bookValue?: number;
+      priceToBook?: number;
+      fiftyTwoWeekHigh?: number;
+      fiftyTwoWeekLow?: number;
+      trailingPE?: number;
     };
     
     const currentEPS = quote?.epsTrailingTwelveMonths || 0;
     const currentPrice = quote?.regularMarketPrice || 0;
+    const bookValue = quote?.bookValue || 0;
+    const fiftyTwoWeekHigh = quote?.fiftyTwoWeekHigh || currentPrice;
+    const fiftyTwoWeekLow = quote?.fiftyTwoWeekLow || currentPrice;
     
-    // Calculate a reasonable P/E for fair value (industry average or historical)
-    const currentPE = currentEPS > 0 ? currentPrice / currentEPS : 0;
-    const fairValuePE = Math.min(Math.max(currentPE * 0.85, 12), 25); // Use 85% of current PE, capped between 12-25
+    // Calculate fair value using multiple methods
+    let baseFairValue = 0;
     
-    // Calculate fair value based on EPS and fair value P/E
-    const baseFairValue = currentEPS > 0 ? currentEPS * fairValuePE : 0;
+    if (currentEPS > 0) {
+      // Method 1: P/E based (primary)
+      const currentPE = currentPrice / currentEPS;
+      const fairValuePE = Math.min(Math.max(currentPE * 0.85, 12), 25);
+      baseFairValue = currentEPS * fairValuePE;
+    } else if (bookValue > 0) {
+      // Method 2: Book value based (fallback)
+      // For companies with no earnings, use 1.5x book value as fair value
+      baseFairValue = bookValue * 1.5;
+    } else {
+      // Method 3: Price-based estimation (last resort)
+      // Use average of 52-week range as a proxy for fair value
+      baseFairValue = (fiftyTwoWeekHigh + fiftyTwoWeekLow) / 2;
+    }
+    
+    // Ensure we always have some fair value
+    if (baseFairValue <= 0) {
+      baseFairValue = currentPrice * 0.85; // 15% discount as basic fair value
+    }
+    
     const buyZoneMultiplier = 0.75; // 25% discount for buy zone
 
     // Process historical data
@@ -87,11 +115,10 @@ export async function GET(request: NextRequest) {
         const date = new Date(item.date);
         const price = item.close;
         
-        // Calculate fair value and buy zone for this historical point
-        // We use a simplified approach: scale fair value based on price ratio
-        const priceRatio = currentPrice > 0 ? price / currentPrice : 1;
-        const historicalFairValue = baseFairValue > 0 ? baseFairValue * priceRatio : null;
-        const historicalBuyZone = historicalFairValue ? historicalFairValue * buyZoneMultiplier : null;
+        // Use constant fair value (based on current fundamentals)
+        // This shows how price has moved relative to estimated fair value
+        const historicalFairValue = baseFairValue;
+        const historicalBuyZone = baseFairValue * buyZoneMultiplier;
         
         // Estimate historical P/E
         const historicalPE = currentEPS > 0 ? price / currentEPS : null;
@@ -99,8 +126,8 @@ export async function GET(request: NextRequest) {
         chartData.push({
           date: date.toISOString().split('T')[0],
           price: Math.round(price * 100) / 100,
-          fairValue: historicalFairValue ? Math.round(historicalFairValue * 100) / 100 : null,
-          buyZone: historicalBuyZone ? Math.round(historicalBuyZone * 100) / 100 : null,
+          fairValue: Math.round(historicalFairValue * 100) / 100,
+          buyZone: Math.round(historicalBuyZone * 100) / 100,
           peRatio: historicalPE ? Math.round(historicalPE * 10) / 10 : null,
         });
       }
@@ -152,7 +179,14 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (error) {
-    console.error('Historical valuation error:', error);
-    return NextResponse.json({ success: false, error: 'Failed to fetch historical data' }, { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    const errorStack = error instanceof Error ? error.stack : '';
+    console.error('Historical valuation error:', errorMessage);
+    console.error('Stack:', errorStack);
+    return NextResponse.json({ 
+      success: false, 
+      error: 'Failed to fetch historical data',
+      details: process.env.NODE_ENV === 'development' ? errorMessage : undefined
+    }, { status: 500 });
   }
 }

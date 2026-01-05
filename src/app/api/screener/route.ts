@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import yahooFinance from 'yahoo-finance2';
+import YahooFinance from 'yahoo-finance2';
+
+// Initialize Yahoo Finance client (required for v3.x)
+const yahooFinance = new YahooFinance();
 
 interface ScreenedStock {
   symbol: string;

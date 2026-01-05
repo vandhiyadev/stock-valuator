@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
-import yahooFinance from 'yahoo-finance2';
+import YahooFinance from 'yahoo-finance2';
+
+// Initialize Yahoo Finance client (required for v3.x)
+const yahooFinance = new YahooFinance();
 
 interface PeerStock {
   symbol: string;
@@ -34,9 +37,10 @@ const SECTOR_PEERS: Record<string, string[]> = {
   'Pharmaceuticals': ['SUNPHARMA.NS', 'DRREDDY.NS', 'CIPLA.NS', 'DIVISLAB.NS', 'BIOCON.NS', 'LUPIN.NS'],
   
   // Consumer
-  'Consumer Defensive': ['PG', 'KO', 'PEP', 'WMT', 'COST', 'PM'],
+  'Consumer Defensive': ['HINDUNILVR.NS', 'ITC.NS', 'NESTLEIND.NS', 'BRITANNIA.NS', 'DABUR.NS', 'MARICO.NS', 'PG', 'KO', 'PEP', 'WMT', 'COST', 'PM'],
   'Consumer Cyclical': ['AMZN', 'TSLA', 'HD', 'NKE', 'MCD', 'SBUX'],
   'Fast Moving Consumer Goods': ['HINDUNILVR.NS', 'ITC.NS', 'NESTLEIND.NS', 'BRITANNIA.NS', 'DABUR.NS', 'MARICO.NS'],
+  'Tobacco': ['ITC.NS', 'PM', 'MO', 'BTI', 'GODFRYPHLP.NS', 'VST.NS'],
   
   // Energy
   'Energy': ['XOM', 'CVX', 'COP', 'SLB', 'EOG', 'PXD'],

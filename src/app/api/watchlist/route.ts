@@ -119,8 +119,16 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     console.error('Watchlist POST error:', error);
+    // Provide more specific error message
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    if (errorMessage.includes('connect') || errorMessage.includes('Connection')) {
+      return NextResponse.json(
+        { success: false, error: 'Database connection error. Please try again.' },
+        { status: 503 }
+      );
+    }
     return NextResponse.json(
-      { success: false, error: 'Failed to add to watchlist' },
+      { success: false, error: 'Failed to add to watchlist. Please try again.' },
       { status: 500 }
     );
   }

@@ -1,6 +1,3 @@
-// Prisma Schema for Stock Valuator
-// Supports SQLite (dev) and Turso/libSQL (production)
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,20 +8,19 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-// NextAuth.js Models
 model Account {
   id                String  @id @default(cuid())
   userId            String
   type              String
   provider          String
   providerAccountId String
-  refresh_token     String?
   access_token      String?
   expires_at        Int?
-  token_type        String?
-  scope             String?
   id_token          String?
+  refresh_token     String?
+  scope             String?
   session_state     String?
+  token_type        String?
   user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
@@ -39,25 +35,21 @@ model Session {
 }
 
 model User {
-  id            String    @id @default(cuid())
+  id            String          @id @default(cuid())
   name          String?
-  email         String?   @unique
+  email         String?         @unique
   emailVerified DateTime?
-  password      String?   // For email/password auth
+  password      String?
   image         String?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-  
-  // Subscription tier
-  tier          String    @default("free") // free, basic, pro
-  
-  // Relations
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  tier          String          @default("free")
   accounts      Account[]
-  sessions      Session[]
-  watchlist     Watchlist[]
-  usage         Usage[]
-  analyses      SavedAnalysis[]
   portfolio     Portfolio[]
+  analyses      SavedAnalysis[]
+  sessions      Session[]
+  usage         Usage[]
+  watchlist     Watchlist[]
 }
 
 model VerificationToken {
@@ -68,63 +60,55 @@ model VerificationToken {
   @@unique([identifier, token])
 }
 
-// Watchlist - Saved stocks
 model Watchlist {
-  id        String   @id @default(cuid())
-  userId    String
-  symbol    String
-  name      String?
-  exchange  String?  // US, NSE, etc.
-  addedAt   DateTime @default(now())
-  notes     String?
-  
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id       String   @id @default(cuid())
+  userId   String
+  symbol   String
+  name     String?
+  addedAt  DateTime @default(now())
+  exchange String?
+  notes    String?
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([userId, symbol])
   @@index([userId])
 }
 
-// Usage tracking for rate limiting
 model Usage {
-  id        String   @id @default(cuid())
-  userId    String
-  date      String   // YYYY-MM-DD format for daily tracking
-  count     Int      @default(0)
-  
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id     String @id @default(cuid())
+  userId String
+  date   String
+  count  Int    @default(0)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([userId, date])
   @@index([userId, date])
 }
 
-// Saved stock analyses
 model SavedAnalysis {
-  id            String   @id @default(cuid())
-  userId        String
-  symbol        String
-  name          String?  // Stock name
-  data          String   // JSON stringified analysis
-  notes         String?  // User notes
-  savedAt       DateTime @default(now())
-  
-  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
+  id      String   @id @default(cuid())
+  userId  String
+  symbol  String
+  name    String?
+  data    String
+  notes   String?
+  savedAt DateTime @default(now())
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@index([userId])
   @@index([symbol])
 }
 
-// Portfolio holdings
 model Portfolio {
-  id        String   @id @default(cuid())
-  userId    String
-  symbol    String
-  name      String
-  quantity  Float
-  avgCost   Float
-  addedAt   DateTime @default(now())
-  
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  
-  @@index([userId])
+  id       String   @id @default(cuid())
+  userId   String
+  symbol   String
+  name     String
+  quantity Float
+  avgCost  Float
+  addedAt  DateTime @default(now())
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([userId, symbol])
+  @@index([userId])
 }
