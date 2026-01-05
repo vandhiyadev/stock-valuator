@@ -6,7 +6,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { Search, TrendingUp, TrendingDown, Minus, AlertTriangle, CheckCircle, Info, DollarSign, BarChart3, Target, Shield, User, LogOut, Star, Heart, X, List, Save, Check, Sparkles, Loader2 } from 'lucide-react';
+import { Search, TrendingUp, TrendingDown, Minus, AlertTriangle, CheckCircle, Info, DollarSign, BarChart3, Target, Shield, User, LogOut, Star, Heart, X, List, Save, Check, Sparkles, Loader2, Users } from 'lucide-react';
 import { useSession, signOut } from 'next-auth/react';
 import Link from 'next/link';
 
@@ -270,6 +270,24 @@ export default function DashboardPage() {
   const [aiLoading, setAiLoading] = useState(false);
   const [showAiPanel, setShowAiPanel] = useState(false);
   
+  // Peer Comparison state
+  interface PeerStock {
+    symbol: string;
+    name: string;
+    price: number;
+    change: number;
+    changePercent: number;
+    marketCap: number;
+    pe: number;
+    forwardPE: number;
+    dividendYield: number;
+    priceToBook: number;
+  }
+  const [peers, setPeers] = useState<PeerStock[]>([]);
+  const [peerAverages, setPeerAverages] = useState<{pe: number; forwardPE: number; dividendYield: number; priceToBook: number}>({pe: 0, forwardPE: 0, dividendYield: 0, priceToBook: 0});
+  const [peersLoading, setPeersLoading] = useState(false);
+  const [showPeers, setShowPeers] = useState(false);
+  
   // Show disclaimer on first visit
   useEffect(() => {
     const hasAcceptedDisclaimer = localStorage.getItem('disclaimerAccepted');
@@ -416,6 +434,24 @@ export default function DashboardPage() {
       setAiSummary('Unable to generate AI analysis. Please try again later.');
     }
     setAiLoading(false);
+  };
+  
+  // Fetch peer comparison data
+  const fetchPeers = async () => {
+    if (!analysis) return;
+    setPeersLoading(true);
+    setShowPeers(true);
+    try {
+      const res = await fetch(`/api/peers?symbol=${analysis.symbol}&sector=${encodeURIComponent(analysis.sector)}&industry=${encodeURIComponent(analysis.industry)}`);
+      const data = await res.json();
+      if (data.success) {
+        setPeers(data.peers);
+        setPeerAverages(data.averages);
+      }
+    } catch (err) {
+      console.error('Peer comparison error:', err);
+    }
+    setPeersLoading(false);
   };
 
   // Debounced search for autocomplete
@@ -854,6 +890,15 @@ export default function DashboardPage() {
                         {aiLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                         {aiLoading ? 'Analyzing...' : 'AI Insights'}
                       </button>
+                      <button
+                        onClick={fetchPeers}
+                        disabled={peersLoading}
+                        className="flex items-center gap-1 px-3 py-1 rounded-full text-sm font-semibold transition-all bg-gradient-to-r from-cyan-500/20 to-blue-500/20 text-cyan-300 hover:from-cyan-500/30 hover:to-blue-500/30 border border-cyan-500/30"
+                        title="Compare with Sector Peers"
+                      >
+                        {peersLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Users className="w-4 h-4" />}
+                        {peersLoading ? 'Loading...' : 'Peers'}
+                      </button>
                     </>
                   )}
                 </div>
@@ -1033,6 +1078,130 @@ export default function DashboardPage() {
                   Regenerate
                 </button>
               </div>
+            </section>
+          )}
+
+          {/* Peer Comparison Panel */}
+          {showPeers && (
+            <section className="bg-gradient-to-r from-cyan-900/30 via-blue-900/20 to-cyan-900/30 rounded-xl p-6 border border-cyan-500/30">
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-lg bg-gradient-to-br from-cyan-500 to-blue-500 flex items-center justify-center">
+                    <Users className="w-6 h-6 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-white">Peer Comparison</h3>
+                    <p className="text-cyan-200/60 text-sm">{analysis.sector} Sector</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShowPeers(false)}
+                  className="p-2 hover:bg-slate-700/50 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-slate-400" />
+                </button>
+              </div>
+              
+              {peersLoading ? (
+                <div className="flex items-center justify-center py-12">
+                  <div className="text-center">
+                    <Loader2 className="w-12 h-12 text-cyan-400 animate-spin mx-auto mb-4" />
+                    <p className="text-cyan-200">Loading peer data...</p>
+                  </div>
+                </div>
+              ) : (
+                <>
+                  {/* Your Stock vs Sector Averages */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                    <div className="bg-slate-900/50 rounded-lg p-4 text-center">
+                      <p className="text-slate-400 text-sm mb-1">Your P/E</p>
+                      <p className={`text-xl font-bold ${analysis.quote.pe < peerAverages.pe ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {analysis.quote.pe?.toFixed(1) || 'N/A'}
+                      </p>
+                      <p className="text-slate-500 text-xs">Avg: {peerAverages.pe.toFixed(1)}</p>
+                    </div>
+                    <div className="bg-slate-900/50 rounded-lg p-4 text-center">
+                      <p className="text-slate-400 text-sm mb-1">Your Fwd P/E</p>
+                      <p className={`text-xl font-bold ${analysis.quote.forwardPE < peerAverages.forwardPE ? 'text-emerald-400' : 'text-red-400'}`}>
+                        {analysis.quote.forwardPE?.toFixed(1) || 'N/A'}
+                      </p>
+                      <p className="text-slate-500 text-xs">Avg: {peerAverages.forwardPE.toFixed(1)}</p>
+                    </div>
+                    <div className="bg-slate-900/50 rounded-lg p-4 text-center">
+                      <p className="text-slate-400 text-sm mb-1">Your Div Yield</p>
+                      <p className={`text-xl font-bold ${analysis.quote.dividendYield > peerAverages.dividendYield ? 'text-emerald-400' : 'text-amber-400'}`}>
+                        {((analysis.quote.dividendYield || 0) * 100).toFixed(2)}%
+                      </p>
+                      <p className="text-slate-500 text-xs">Avg: {(peerAverages.dividendYield * 100).toFixed(2)}%</p>
+                    </div>
+                    <div className="bg-slate-900/50 rounded-lg p-4 text-center">
+                      <p className="text-slate-400 text-sm mb-1">Verdict</p>
+                      <p className={`text-xl font-bold ${analysis.quote.pe < peerAverages.pe ? 'text-emerald-400' : 'text-amber-400'}`}>
+                        {analysis.quote.pe < peerAverages.pe ? 'Cheaper' : 'Pricier'}
+                      </p>
+                      <p className="text-slate-500 text-xs">vs peers</p>
+                    </div>
+                  </div>
+                  
+                  {/* Peer Table */}
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-cyan-500/30">
+                          <th className="text-left py-3 px-4 text-cyan-300">Company</th>
+                          <th className="text-right py-3 px-4 text-cyan-300">Price</th>
+                          <th className="text-right py-3 px-4 text-cyan-300">Change</th>
+                          <th className="text-right py-3 px-4 text-cyan-300">P/E</th>
+                          <th className="text-right py-3 px-4 text-cyan-300">Fwd P/E</th>
+                          <th className="text-right py-3 px-4 text-cyan-300">Market Cap</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {/* Current Stock Row */}
+                        <tr className="border-b border-cyan-500/20 bg-cyan-500/10">
+                          <td className="py-3 px-4">
+                            <div className="font-semibold text-white">{analysis.symbol}</div>
+                            <div className="text-slate-400 text-xs truncate max-w-[150px]">{analysis.name}</div>
+                          </td>
+                          <td className="text-right py-3 px-4 text-white font-mono">{formatCurrency(analysis.currentPrice, curr)}</td>
+                          <td className={`text-right py-3 px-4 font-mono ${analysis.quote.changePercent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                            {analysis.quote.changePercent >= 0 ? '+' : ''}{analysis.quote.changePercent.toFixed(2)}%
+                          </td>
+                          <td className="text-right py-3 px-4 text-white font-mono">{analysis.quote.pe?.toFixed(1) || 'N/A'}</td>
+                          <td className="text-right py-3 px-4 text-white font-mono">{analysis.quote.forwardPE?.toFixed(1) || 'N/A'}</td>
+                          <td className="text-right py-3 px-4 text-white font-mono">{formatLargeCurrency(analysis.quote.marketCap, curr)}</td>
+                        </tr>
+                        {/* Peer Rows */}
+                        {peers.map((peer) => (
+                          <tr key={peer.symbol} className="border-b border-slate-700/50 hover:bg-slate-700/30">
+                            <td className="py-3 px-4">
+                              <div className="font-semibold text-slate-200">{peer.symbol}</div>
+                              <div className="text-slate-400 text-xs truncate max-w-[150px]">{peer.name}</div>
+                            </td>
+                            <td className="text-right py-3 px-4 text-slate-300 font-mono">{formatCurrency(peer.price, curr)}</td>
+                            <td className={`text-right py-3 px-4 font-mono ${peer.changePercent >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                              {peer.changePercent >= 0 ? '+' : ''}{peer.changePercent.toFixed(2)}%
+                            </td>
+                            <td className={`text-right py-3 px-4 font-mono ${peer.pe < analysis.quote.pe ? 'text-emerald-400' : 'text-slate-300'}`}>
+                              {peer.pe?.toFixed(1) || 'N/A'}
+                            </td>
+                            <td className={`text-right py-3 px-4 font-mono ${peer.forwardPE < analysis.quote.forwardPE ? 'text-emerald-400' : 'text-slate-300'}`}>
+                              {peer.forwardPE?.toFixed(1) || 'N/A'}
+                            </td>
+                            <td className="text-right py-3 px-4 text-slate-300 font-mono">{formatLargeCurrency(peer.marketCap, curr)}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  
+                  {peers.length === 0 && (
+                    <div className="text-center py-8 text-slate-400">
+                      No peer data available for this sector
+                    </div>
+                  )}
+                </>
+              )}
             </section>
           )}
 
