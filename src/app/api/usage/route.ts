@@ -10,7 +10,7 @@ import prisma from '@/lib/prisma';
 
 // Daily limits by tier
 const DAILY_LIMITS: Record<string, number> = {
-  admin: Infinity, // Unlimited for admin
+  admin: 999999, // Unlimited for admin (using large number since Infinity becomes null in JSON)
   free: 5,
   basic: 50,
   pro: 500,
